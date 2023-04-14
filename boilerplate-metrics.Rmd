@@ -1,0 +1,190 @@
+---
+title: "Boilerplate Metrics"
+author: "Amy Shuff"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'hide')
+```
+
+
+## Growing Up Publications Indicators
+
+POTENTIAL SHARED INDICATORS 
+
+Median wages (number of households with children living below poverty line) 
+Median rents (Number of children living in households with a high housing cost burden) 
+Age-specific coverage rates for health insurance 
+SNAP application and enrollment rates vs eligibility (for families with children; WIC focus?) 
+Housing stability (mobility rates amongst children; include school mobility?) 
+Trade school and other post-secondary opportunities 
+Unemployment rates and other labor and employment metrics 
+Reports of child abuse and neglect from CPS --poses a challenge 
+Chronic absenteeism 
+Test scores? 
+Immigration/linguistic indicators 
+Child care availability 
+
+ 
+
+EL PASO INDICATORS (August or November release) 
+
+Number of immigrant children (C@R definition) 
+Linguistic indicators? 
+Other immigration specific indicators that highlight unique challenges posed to immigrant families 
+Opportunity Youth focus UTEP Data for OY 
+Food insecurity 
+
+ 
+
+SAN ANTONIO INDICATORS (Late September release) 
+
+Child abuse indicators (needs building out) 
+Poverty and intergenerational barriers (mentioned during the check in with san antonio, unsure how to measure this) 
+Social community engagement with families/parents (mentioned during the check in with san antonio, unsure how to measure this) 
+
+
+```{r, results='hide'}
+library(tidyverse)
+library(janitor)
+library(reshape2)
+library(here)
+library(tidycensus)
+library(readxl)
+library(stringr)
+```
+
+## Child Care Desert Indicators
+
+
+
+```{r, results='hide'}
+
+# A Census API key is required.  Obtain one at http://api.census.gov/data/key_signup.html, and then supply the key to the `census_api_key()` function to use it throughout your tidycensus session.
+
+census_api_key("c3d12d20da12dc79099884d8e4a136a9f30a3b39", install = TRUE, overwrite = TRUE)
+
+acs20 <- load_variables(2020, "acs5", cache = TRUE)
+
+BIPOC_20_5yr <-  get_acs(geography = "zcta",
+                         variables = c(white_und5_male = "B01001A_003", 
+                                       white_und5_female = "B01001A_018", 
+                                       und5_male = "B01001_003", 
+                                       und5_female = "B01001_027"),
+                         year = 2020,
+                         
+                         # geometry = TRUE,
+                         # geometry if FALSE (the default), return a regular tibble of ACS data. if TRUE, uses the tigris package to return an sf tibble with simple feature geometry in the 'geometry' column.
+                         
+                         output = "wide",
+                         # output of "tidy" (the default) in which each row represents an enumeration unit-variable combination, or                          "wide" in which each row represents an enumeration unit and the variables are in the columns.
+                         
+                         survey = "acs5")
+
+#  state = "TX", county = "Harris",
+
+```
+
+## Census Data Examples
+
+```{r}
+# Read more about using tidy census here: https://walker-data.com/census-r/an-introduction-to-tidycensus.html
+
+# get_estimates()
+# get_pums()
+
+# get_decennial(), which requests data from the US Decennial Census APIs for 2000, 2010, and 2020.
+# 
+# get_acs(), which requests data from the 1-year and 5-year American Community Survey samples. Data are available from the 1-year ACS back to 2005 and the 5-year ACS back to 2005-2009.
+# 
+# get_estimates(), an interface to the Population Estimates APIs. These datasets include yearly estimates of population characteristics by state, county, and metropolitan area, along with components of change demographic estimates like births, deaths, and migration rates.
+# 
+# get_pums(), which accesses data from the ACS Public Use Microdata Sample APIs. These samples include anonymized individual-level records from the ACS organized by household and are highly useful for many different social science analyses. get_pums() is covered in more depth in Chapters 9 and 10.
+
+```
+
+```{r, fig.width=6, fig.height=25}
+
+
+tx <- get_acs(geography = "county", variables = "B19013_001", state = "TX", year = 2020)
+
+tx %>%
+mutate(NAME = gsub(" County, Texas", "", NAME)) %>%
+ ggplot(aes(x = estimate, y = reorder(NAME, estimate))) +
+  geom_errorbar(aes(xmin = estimate - moe, xmax = estimate + moe), width = 0.3, size = 0.5) +
+  geom_point(color = "red", size = 3) +
+  labs(title = "Median household income by county in Texas",
+       subtitle = "2020 American Community Survey",
+       y = "",
+       x = "ACS estimate (bars represent margin of error)")
+
+```
+
+``` {r}
+
+# Estimate!!Median household income in the past 12 months
+
+Harris <- get_acs(geography = "tract", variables = "B19013_001",
+                state = "TX", county = "Harris County", geometry = TRUE, year = 2020)
+
+ggplot(Harris, aes(fill = estimate, color = estimate)) +
+  geom_sf() +
+  coord_sf(crs = 26914) +
+  viridis::scale_fill_viridis(option = "magma") +
+  viridis::scale_color_viridis(option = "magma") +
+  labs(title = "Median household income by census tract in Harris County",
+       subtitle = "2020 American Community Survey") +  
+        theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()
+        )
+
+```
+
+```{r}
+
+# see variables available for get_decennial 2020 dataset
+d20 <- load_variables(2020, "pl", cache = TRUE)
+
+# see variables available for get_decennial 2020 dataset
+d10 <- load_variables(2010, "sf1", cache = TRUE)
+
+# P005003 = Total!!Not Hispanic or Latino!!White alone
+# P005004 = Total!!Not Hispanic or Latino!!Black or African American alone
+# P005006 = Total!!Not Hispanic or Latino!!Asian alone
+# P004003 = Total!!Hispanic or Latino
+# P001001 = TOTAL POPULATION
+
+tx_race_2010 <- get_decennial(geography = "county", variables = c("P005003", "P005004", "P005006", "P004003"), year = 2010,
+                    summary_var = "P001001", state = "TX", geometry = TRUE) %>%
+  mutate(pct = 100 * (value / summary_value)) %>% 
+  rename(race = variable)
+
+tx_race_2010$"race" = gsub("P005003", "White", tx_race_2010$"race")
+tx_race_2010$"race" = gsub("P005004", "Black", tx_race_2010$"race")
+tx_race_2010$"race" = gsub("P005006", "Asian", tx_race_2010$"race")
+tx_race_2010$"race" = gsub("P004003", "Hispanic or Latino", tx_race_2010$"race")
+
+
+ggplot(tx_race_2010, aes(fill = pct, color = pct)) +
+  geom_sf() +
+  facet_wrap(~race) +
+    labs(title = "Racial Demographics of Texas by County",
+       subtitle = "2010 Decennial Census") +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank())
+
+```
