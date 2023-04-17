@@ -16,36 +16,36 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 
 
 POTENTIAL SHARED INDICATORS 
 
-Median wages (number of households with children living below poverty line) 
-Median rents (Number of children living in households with a high housing cost burden) 
-Age-specific coverage rates for health insurance 
-SNAP application and enrollment rates vs eligibility (for families with children; WIC focus?) 
-Housing stability (mobility rates amongst children; include school mobility?) 
-Trade school and other post-secondary opportunities 
-Unemployment rates and other labor and employment metrics 
-Reports of child abuse and neglect from CPS --poses a challenge 
-Chronic absenteeism 
-Test scores? 
-Immigration/linguistic indicators 
-Child care availability 
+* Median wages (number of households with children living below poverty line) 
+* Median rents (Number of children living in households with a high housing cost burden) 
+* Age-specific coverage rates for health insurance 
+* SNAP application and enrollment rates vs eligibility (for families with children; WIC focus?) 
+* Housing stability (mobility rates amongst children; include school mobility?) 
+* Trade school and other post-secondary opportunities 
+* Unemployment rates and other labor and employment metrics 
+* Reports of child abuse and neglect from CPS --poses a challenge 
+* Chronic absenteeism 
+* Test scores? 
+* Immigration/linguistic indicators 
+* Child care availability 
 
  
 
 EL PASO INDICATORS (August or November release) 
 
-Number of immigrant children (C@R definition) 
-Linguistic indicators? 
-Other immigration specific indicators that highlight unique challenges posed to immigrant families 
-Opportunity Youth focus UTEP Data for OY 
-Food insecurity 
+* Number of immigrant children (C@R definition) 
+* Linguistic indicators? 
+* Other immigration specific indicators that highlight unique challenges posed to immigrant families
+* Opportunity Youth focus UTEP Data for OY 
+* Food insecurity 
 
  
 
 SAN ANTONIO INDICATORS (Late September release) 
 
-Child abuse indicators (needs building out) 
-Poverty and intergenerational barriers (mentioned during the check in with san antonio, unsure how to measure this) 
-Social community engagement with families/parents (mentioned during the check in with san antonio, unsure how to measure this) 
+* Child abuse indicators (needs building out) 
+* Poverty and intergenerational barriers (mentioned during the check in with san antonio, unsure how to measure this) 
+* Social community engagement with families/parents (mentioned during the check in with san antonio, unsure how to measure this) 
 
 
 ```{r, results='hide'}
@@ -107,17 +107,38 @@ BIPOC_20_5yr <-  get_acs(geography = "zcta",
 
 ```
 
-```{r, fig.width=6, fig.height=25}
+```{r, #fig.width=6, #fig.height=25}
 
 
-tx <- get_acs(geography = "county", variables = "B19013_001", state = "TX", year = 2020)
+median.income <- get_acs(geography = "county", variables = "B19013_001", state = "TX", year = 2020)
 
-tx %>%
-mutate(NAME = gsub(" County, Texas", "", NAME)) %>%
- ggplot(aes(x = estimate, y = reorder(NAME, estimate))) +
+median.income.high <- median.income %>%
+  arrange(-estimate) %>% 
+  slice(1:10) %>% 
+  mutate(NAME = gsub(" County, Texas", "", NAME))
+
+  ggplot(median.income.high, aes(x = estimate, y = reorder(NAME, estimate))) +
   geom_errorbar(aes(xmin = estimate - moe, xmax = estimate + moe), width = 0.3, size = 0.5) +
   geom_point(color = "red", size = 3) +
-  labs(title = "Median household income by county in Texas",
+  coord_cartesian(xlim = c(0, 120000)) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title = "Counties with Highest Median Incomes in Texas",
+       subtitle = "2020 American Community Survey",
+       y = "",
+       x = "ACS estimate (bars represent margin of error)")
+
+median.income.low <- median.income %>%
+  arrange(estimate) %>% 
+  slice(1:10) %>% 
+  mutate(NAME = gsub(" County, Texas", "", NAME))
+
+  ggplot(median.income.low, aes(x = estimate, y = reorder(NAME, estimate), label = estimate)) +
+  geom_errorbar(aes(xmin = estimate - moe, xmax = estimate + moe), width = 0.3, size = 0.5) +
+  geom_point(color = "red", size = 3) +
+    geom_text(vjust = .01) +
+  coord_cartesian(xlim = c(0, 120000)) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title = "Counties with Lowest Median Incomes in Texas",
        subtitle = "2020 American Community Survey",
        y = "",
        x = "ACS estimate (bars represent margin of error)")
@@ -126,7 +147,33 @@ mutate(NAME = gsub(" County, Texas", "", NAME)) %>%
 
 ``` {r}
 
-# Estimate!!Median household income in the past 12 months
+# B19013_001 = Estimate!!Median household income in the past 12 months
+
+txcounty <- c("Harris County", "Dallas", "El Paso", "Bexar")
+
+for (place in txcounty) {
+
+place <- get_acs(geography = "tract", variables = "B19013_001",
+                state = "TX", county = place, geometry = TRUE, year = 2020)
+
+ggplot(place, aes(fill = estimate, color = estimate)) +
+  geom_sf() +
+  coord_sf(crs = 26914) +
+  viridis::scale_fill_viridis(option = "magma") +
+  viridis::scale_color_viridis(option = "magma") +
+  labs(title = "Median household income by census tract in place",
+       subtitle = "2020 American Community Survey") +
+        theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()
+        )
+}
+
+
 
 Harris <- get_acs(geography = "tract", variables = "B19013_001",
                 state = "TX", county = "Harris County", geometry = TRUE, year = 2020)
@@ -136,8 +183,8 @@ ggplot(Harris, aes(fill = estimate, color = estimate)) +
   coord_sf(crs = 26914) +
   viridis::scale_fill_viridis(option = "magma") +
   viridis::scale_color_viridis(option = "magma") +
-  labs(title = "Median household income by census tract in Harris County",
-       subtitle = "2020 American Community Survey") +  
+labs(title = "Median household income by census tract in Harris County",
+       subtitle = "2020 American Community Survey") +
         theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         axis.text.y=element_blank(),
@@ -166,14 +213,14 @@ d10 <- load_variables(2010, "sf1", cache = TRUE)
 tx_race_2010 <- get_decennial(geography = "county", variables = c("P005003", "P005004", "P005006", "P004003"), year = 2010,
                     summary_var = "P001001", state = "TX", geometry = TRUE) %>%
   mutate(pct = 100 * (value / summary_value)) %>% 
-  rename(race = variable)
-
-tx_race_2010$"race" = gsub("P005003", "White", tx_race_2010$"race")
-tx_race_2010$"race" = gsub("P005004", "Black", tx_race_2010$"race")
-tx_race_2010$"race" = gsub("P005006", "Asian", tx_race_2010$"race")
-tx_race_2010$"race" = gsub("P004003", "Hispanic or Latino", tx_race_2010$"race")
-
-
+  #rename(race = variable) %>% 
+  mutate(race = gsub("P005003", "White", variable),
+         race = gsub("P005004", "Black", race),
+         race = gsub("P005006", "Asian", race),
+         race = gsub("P004003", "Hispanic or Latino", race),
+         NAME = gsub(" County, Texas", "", NAME))
+    
+    
 ggplot(tx_race_2010, aes(fill = pct, color = pct)) +
   geom_sf() +
   facet_wrap(~race) +
